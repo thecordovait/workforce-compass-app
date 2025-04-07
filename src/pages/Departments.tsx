@@ -81,23 +81,21 @@ const Departments = () => {
         if (deptError) throw deptError;
         
         // Then get employee counts per department
-        const { data: countData, error: countError } = await supabase
-          .from('employees')
-          .select('department_id, count')
-          .select('department_id')
-          .select('count', { count: 'exact' })
-          .groupBy('department_id');
-        
-        if (countError) throw countError;
-        
-        // Combine the data
-        const departmentsWithCount = deptData.map((dept: Department) => {
-          const countInfo = countData.find((c: any) => c.department_id === dept.id);
-          return {
-            ...dept,
-            employee_count: countInfo ? countInfo.count : 0
-          };
-        });
+        const departmentsWithCount = await Promise.all(
+          (deptData || []).map(async (dept: Department) => {
+            const { count, error: countError } = await supabase
+              .from('employees')
+              .select('*', { count: 'exact', head: true })
+              .eq('department_id', dept.id);
+            
+            if (countError) throw countError;
+            
+            return {
+              ...dept,
+              employee_count: count || 0
+            };
+          })
+        );
         
         return departmentsWithCount || [];
       }
@@ -106,10 +104,14 @@ const Departments = () => {
 
   // Add department mutation
   const addDepartmentMutation = useMutation({
-    mutationFn: async (newDepartment: Omit<Department, 'id' | 'created_at' | 'manager_id'>) => {
+    mutationFn: async (newDepartment: DepartmentFormValues) => {
       const { data, error } = await supabase
         .from('departments')
-        .insert([{ ...newDepartment, manager_id: null }])
+        .insert([{ 
+          name: newDepartment.name, 
+          location: newDepartment.location, 
+          manager_id: null 
+        }])
         .select();
       
       if (error) throw error;

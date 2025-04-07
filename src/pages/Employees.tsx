@@ -113,10 +113,18 @@ const Employees = () => {
 
   // Add employee mutation
   const addEmployeeMutation = useMutation({
-    mutationFn: async (newEmployee: Omit<Employee, 'id' | 'created_at'>) => {
+    mutationFn: async (newEmployee: EmployeeFormValues) => {
       const { data, error } = await supabase
         .from('employees')
-        .insert([newEmployee])
+        .insert([{
+          first_name: newEmployee.first_name,
+          last_name: newEmployee.last_name,
+          email: newEmployee.email,
+          hire_date: newEmployee.hire_date,
+          salary: newEmployee.salary,
+          department_id: newEmployee.department_id,
+          job_title: newEmployee.job_title
+        }])
         .select();
       
       if (error) throw error;
@@ -142,10 +150,18 @@ const Employees = () => {
 
   // Update employee mutation
   const updateEmployeeMutation = useMutation({
-    mutationFn: async ({ id, ...updateEmployee }: Employee) => {
+    mutationFn: async ({ id, ...updateData }: { id: string } & EmployeeFormValues) => {
       const { data, error } = await supabase
         .from('employees')
-        .update(updateEmployee)
+        .update({
+          first_name: updateData.first_name,
+          last_name: updateData.last_name,
+          email: updateData.email,
+          hire_date: updateData.hire_date,
+          salary: updateData.salary,
+          department_id: updateData.department_id,
+          job_title: updateData.job_title
+        })
         .eq('id', id)
         .select();
       
@@ -234,7 +250,6 @@ const Employees = () => {
       updateEmployeeMutation.mutate({
         ...data,
         id: selectedEmployee.id,
-        created_at: selectedEmployee.created_at,
       });
     }
   };
