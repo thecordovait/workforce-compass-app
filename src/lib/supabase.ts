@@ -1,9 +1,12 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Environment variables would typically be used in a production app
-// For this demo, we'll use placeholder values
-const supabaseUrl = 'https://placeholder.supabase.co';
-const supabaseAnonKey = 'placeholder';
+// Use environment variables for Supabase connection
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase environment variables. Check .env file.');
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
