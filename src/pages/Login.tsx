@@ -24,6 +24,9 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { hasValidCredentials } from '@/lib/supabase';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address' }),
@@ -37,6 +40,7 @@ const Login = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -47,11 +51,20 @@ const Login = () => {
   });
 
   const onSubmit = async (data: FormData) => {
+    setLoginError(null);
+    
+    if (!hasValidCredentials()) {
+      setLoginError("Configuration error: Missing valid Supabase credentials. Please set up your environment variables.");
+      return;
+    }
+    
     try {
       setIsLoading(true);
       await signIn(data.email, data.password);
+      // Note: navigation is handled in signIn method
     } catch (error) {
       console.error('Login error:', error);
+      setLoginError("Failed to sign in. Please check your credentials and try again.");
     } finally {
       setIsLoading(false);
     }
@@ -68,6 +81,14 @@ const Login = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {loginError && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{loginError}</AlertDescription>
+              </Alert>
+            )}
+            
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField

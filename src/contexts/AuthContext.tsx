@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -28,7 +27,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const getUser = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          return;
+        }
+        
         if (session?.user) {
           setUser({
             id: session.user.id,
@@ -46,6 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
         if (session?.user) {
           setUser({
             id: session.user.id,
@@ -73,7 +79,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       
       toast({
         title: "Welcome back!",
@@ -82,11 +90,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       navigate('/dashboard');
     } catch (error: any) {
+      console.error('Login error details:', error);
       toast({
         title: "Login failed",
-        description: error.message,
+        description: error.message || "Failed to sign in. Please check your credentials.",
         variant: "destructive",
       });
+      throw error; // Re-throw to allow the login component to handle it
     } finally {
       setIsLoading(false);
     }

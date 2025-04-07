@@ -11,5 +11,17 @@ if (supabaseUrl === 'https://your-supabase-url.supabase.co' || supabaseAnonKey =
   console.warn('Using placeholder Supabase credentials. Replace with actual values in .env file.');
 }
 
-// Initialize the Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Initialize the Supabase client with options for better error handling
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+});
+
+// Export a helper function to check if we're using real credentials
+export const hasValidCredentials = () => {
+  return supabaseUrl !== 'https://your-supabase-url.supabase.co' && 
+         supabaseAnonKey !== 'your-anon-key';
+};
