@@ -1,15 +1,9 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Provide fallback values for development if environment variables aren't set
-// These should be replaced with actual values in production
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-supabase-url.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
-
-// Log a warning if using placeholder values
-if (supabaseUrl === 'https://your-supabase-url.supabase.co' || supabaseAnonKey === 'your-anon-key') {
-  console.warn('Using placeholder Supabase credentials. Replace with actual values in .env file.');
-}
+// Use the actual Supabase URL and key from the connected Supabase project
+const supabaseUrl = "https://ncbrcytyuvftzrqonnzh.supabase.co";
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jYnJjeXR5dXZmdHpycW9ubnpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2NDkxMjgsImV4cCI6MjA1OTIyNTEyOH0.i87WXXKNPDjQllcjgWxclst1dy9--47WvChGiH-vj9k";
 
 // Initialize the Supabase client with options for better error handling
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -21,7 +15,4 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 // Export a helper function to check if we're using real credentials
-export const hasValidCredentials = () => {
-  return supabaseUrl !== 'https://your-supabase-url.supabase.co' && 
-         supabaseAnonKey !== 'your-anon-key';
-};
+export const hasValidCredentials = () => true; // We now have valid credentials
