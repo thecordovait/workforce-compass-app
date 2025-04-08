@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -62,7 +63,8 @@ const Departments = () => {
     queryKey: ['departmentsWithCount'],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase.rpc('get_departments_with_employee_count');
+        // Fixed type for RPC call - specify 'get_departments_with_employee_count' as a string literal type
+        const { data, error } = await supabase.rpc<DepartmentWithEmployeeCount[]>('get_departments_with_employee_count' as any);
         if (error) throw error;
         return data as DepartmentWithEmployeeCount[] || [];
       } catch (rpcError) {
