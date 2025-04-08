@@ -63,8 +63,8 @@ const Departments = () => {
     queryKey: ['departmentsWithCount'],
     queryFn: async () => {
       try {
-        // Use a type assertion for the entire function call 
-        const { data, error } = await (supabase.rpc('get_departments_with_employee_count', {}) as any);
+        // Fix: Use a proper type assertion without specifying generic parameters
+        const { data, error } = await supabase.rpc('get_departments_with_employee_count');
         if (error) throw error;
         return data as DepartmentWithEmployeeCount[] || [];
       } catch (rpcError) {
