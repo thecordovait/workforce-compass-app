@@ -63,7 +63,7 @@ const Departments = () => {
     queryKey: ['departmentsWithCount'],
     queryFn: async () => {
       try {
-        // Fix: Remove the empty parameter and use a proper type assertion
+        // Fix: Use correct typing for RPC call - don't pass empty parameters
         const { data, error } = await supabase.rpc('get_departments_with_employee_count');
         if (error) throw error;
         return data as DepartmentWithEmployeeCount[] || [];
