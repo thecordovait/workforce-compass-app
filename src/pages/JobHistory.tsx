@@ -33,6 +33,7 @@ import {
 import { format } from 'date-fns';
 import { JobHistory, Employee, Department } from '@/types/database';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { toast } from 'sonner';
 
 const JobHistoryPage = () => {
   const [employeeFilter, setEmployeeFilter] = useState<string>('');
@@ -42,27 +43,39 @@ const JobHistoryPage = () => {
   const { data: jobHistory = [], isLoading: isLoadingJobHistory, refetch } = useQuery({
     queryKey: ['jobHistory', employeeFilter, departmentFilter],
     queryFn: async () => {
-      let query = supabase
-        .from('jobhistory')
-        .select(`
-          *,
-          employee (empno, firstname, lastname),
-          department (deptcode, deptname)
-        `)
-        .order('effdate', { ascending: false });
-      
-      if (employeeFilter) {
-        query = query.eq('empno', employeeFilter);
+      try {
+        console.log("Fetching job history with filters:", { employeeFilter, departmentFilter });
+        let query = supabase
+          .from('jobhistory')
+          .select(`
+            *,
+            employee (empno, firstname, lastname),
+            department (deptcode, deptname)
+          `)
+          .order('effdate', { ascending: false });
+        
+        if (employeeFilter) {
+          query = query.eq('empno', employeeFilter);
+        }
+        
+        if (departmentFilter) {
+          query = query.eq('deptcode', departmentFilter);
+        }
+        
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error("Error fetching job history:", error);
+          throw error;
+        }
+        
+        console.log("Job history data:", data);
+        return data || [];
+      } catch (error) {
+        console.error("Failed to fetch job history:", error);
+        toast.error("Failed to load job history data");
+        return [];
       }
-      
-      if (departmentFilter) {
-        query = query.eq('deptcode', departmentFilter);
-      }
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      return data || [];
     },
   });
 
@@ -70,13 +83,20 @@ const JobHistoryPage = () => {
   const { data: employees = [] } = useQuery({
     queryKey: ['employeesDropdown'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('employee')
-        .select('empno, firstname, lastname')
-        .order('lastname', { ascending: true });
-      
-      if (error) throw error;
-      return data || [];
+      try {
+        const { data, error } = await supabase
+          .from('employee')
+          .select('empno, firstname, lastname')
+          .order('lastname', { ascending: true });
+        
+        if (error) throw error;
+        console.log("Employees data:", data);
+        return data || [];
+      } catch (error) {
+        console.error("Failed to fetch employees:", error);
+        toast.error("Failed to load employee data");
+        return [];
+      }
     },
   });
 
@@ -84,19 +104,32 @@ const JobHistoryPage = () => {
   const { data: departments = [] } = useQuery({
     queryKey: ['departmentsDropdown'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('department')
-        .select('deptcode, deptname')
-        .order('deptname', { ascending: true });
-      
-      if (error) throw error;
-      return data || [];
+      try {
+        const { data, error } = await supabase
+          .from('department')
+          .select('deptcode, deptname')
+          .order('deptname', { ascending: true });
+        
+        if (error) throw error;
+        console.log("Departments data:", data);
+        return data || [];
+      } catch (error) {
+        console.error("Failed to fetch departments:", error);
+        toast.error("Failed to load department data");
+        return [];
+      }
     },
   });
 
   const handleClearFilters = () => {
     setEmployeeFilter('');
     setDepartmentFilter('');
+  };
+
+  // Handle refresh with feedback
+  const handleRefresh = () => {
+    toast.info("Refreshing data...");
+    refetch();
   };
 
   return (
@@ -216,7 +249,7 @@ const JobHistoryPage = () => {
           <Button 
             variant="ghost" 
             size="icon"
-            onClick={() => refetch()}
+            onClick={handleRefresh}
             title="Refresh"
           >
             <RefreshCw className="h-4 w-4" />
