@@ -8,6 +8,11 @@ export const useDepartments = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+export type DepartmentFormValues = {
+  deptname: string;       // required
+  location?: string;      // optional, or required depending on your form
+};  
+  
   const {
     data: departments = [],
     isLoading,
