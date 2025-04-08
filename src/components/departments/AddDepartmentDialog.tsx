@@ -18,9 +18,9 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { z } from 'zod';
 import { UseFormReturn } from 'react-hook-form';
 
+// Update the type to match the schema where deptname is required
 interface AddDepartmentDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;

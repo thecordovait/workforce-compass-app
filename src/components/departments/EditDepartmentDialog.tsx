@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/form';
 import { UseFormReturn } from 'react-hook-form';
 
+// Update the interface to match where deptname is required
 interface EditDepartmentDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;

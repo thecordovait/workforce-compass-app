@@ -13,6 +13,7 @@ import EditDepartmentDialog from '@/components/departments/EditDepartmentDialog'
 import DeleteDepartmentDialog from '@/components/departments/DeleteDepartmentDialog';
 import { useDepartments } from '@/hooks/useDepartments';
 
+// Define the schema with required deptname
 const departmentFormSchema = z.object({
   deptname: z.string().min(1, { message: 'Department name is required' }),
   location: z.string().optional(),
@@ -34,6 +35,7 @@ const Departments = () => {
     deleteDepartmentMutation 
   } = useDepartments();
 
+  // Ensure defaultValues matches the schema - deptname is not optional
   const addForm = useForm<DepartmentFormValues>({
     resolver: zodResolver(departmentFormSchema),
     defaultValues: {
