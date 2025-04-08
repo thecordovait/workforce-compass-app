@@ -62,7 +62,7 @@ const Departments = () => {
     queryKey: ['departmentsWithCount'],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase.rpc('get_departments_with_employee_count');
+        const { data, error } = await supabase.rpc<DepartmentWithEmployeeCount[]>('get_departments_with_employee_count');
         if (error) throw error;
         return data || [];
       } catch (rpcError) {
