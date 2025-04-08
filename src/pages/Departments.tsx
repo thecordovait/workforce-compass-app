@@ -44,8 +44,8 @@ import { Department, DepartmentWithEmployeeCount } from '@/types/database';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 
 const departmentFormSchema = z.object({
-  name: z.string().min(1, { message: 'Department name is required' }),
-  location: z.string().min(1, { message: 'Location is required' }),
+  deptname: z.string().min(1, { message: 'Department name is required' }),
+  location: z.string().optional(),
 });
 
 type DepartmentFormValues = z.infer<typeof departmentFormSchema>;
@@ -74,9 +74,9 @@ const Departments = () => {
         
         // First get all departments
         const { data: deptData, error: deptError } = await supabase
-          .from('departments')
+          .from('department')
           .select('*')
-          .order('name', { ascending: true });
+          .order('deptname', { ascending: true });
         
         if (deptError) throw deptError;
         
@@ -84,9 +84,9 @@ const Departments = () => {
         const departmentsWithCount = await Promise.all(
           (deptData || []).map(async (dept: Department) => {
             const { count, error: countError } = await supabase
-              .from('employees')
+              .from('jobhistory')
               .select('*', { count: 'exact', head: true })
-              .eq('department_id', dept.id);
+              .eq('deptcode', dept.deptcode);
             
             if (countError) throw countError;
             
@@ -106,11 +106,10 @@ const Departments = () => {
   const addDepartmentMutation = useMutation({
     mutationFn: async (newDepartment: DepartmentFormValues) => {
       const { data, error } = await supabase
-        .from('departments')
+        .from('department')
         .insert([{ 
-          name: newDepartment.name, 
-          location: newDepartment.location, 
-          manager_id: null 
+          deptcode: Date.now().toString(), // Generate a simple unique ID
+          deptname: newDepartment.deptname
         }])
         .select();
       
@@ -137,11 +136,11 @@ const Departments = () => {
 
   // Update department mutation
   const updateDepartmentMutation = useMutation({
-    mutationFn: async ({ id, name, location }: Partial<Department> & { id: string }) => {
+    mutationFn: async ({ deptcode, deptname }: Department) => {
       const { data, error } = await supabase
-        .from('departments')
-        .update({ name, location })
-        .eq('id', id)
+        .from('department')
+        .update({ deptname })
+        .eq('deptcode', deptcode)
         .select();
       
       if (error) throw error;
@@ -166,11 +165,11 @@ const Departments = () => {
 
   // Delete department mutation
   const deleteDepartmentMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (deptcode: string) => {
       const { error } = await supabase
-        .from('departments')
+        .from('department')
         .delete()
-        .eq('id', id);
+        .eq('deptcode', deptcode);
       
       if (error) throw error;
     },
@@ -196,7 +195,7 @@ const Departments = () => {
   const addForm = useForm<DepartmentFormValues>({
     resolver: zodResolver(departmentFormSchema),
     defaultValues: {
-      name: '',
+      deptname: '',
       location: '',
     },
   });
@@ -204,7 +203,7 @@ const Departments = () => {
   const editForm = useForm<DepartmentFormValues>({
     resolver: zodResolver(departmentFormSchema),
     defaultValues: {
-      name: '',
+      deptname: '',
       location: '',
     },
   });
@@ -217,23 +216,23 @@ const Departments = () => {
   const handleUpdateDepartment = (data: DepartmentFormValues) => {
     if (selectedDepartment) {
       updateDepartmentMutation.mutate({
-        ...data,
-        id: selectedDepartment.id,
+        deptcode: selectedDepartment.deptcode,
+        deptname: data.deptname,
       });
     }
   };
 
   const handleDeleteDepartment = () => {
     if (selectedDepartment) {
-      deleteDepartmentMutation.mutate(selectedDepartment.id);
+      deleteDepartmentMutation.mutate(selectedDepartment.deptcode);
     }
   };
 
   const openEditDialog = (department: DepartmentWithEmployeeCount) => {
     setSelectedDepartment(department);
     editForm.reset({
-      name: department.name,
-      location: department.location,
+      deptname: department.deptname || '',
+      location: '',  // Note: location is not in the actual schema
     });
     setIsEditDialogOpen(true);
   };
@@ -265,7 +264,6 @@ const Departments = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Department Name</TableHead>
-                <TableHead>Location</TableHead>
                 <TableHead>Employees</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -273,17 +271,16 @@ const Departments = () => {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-4">Loading...</TableCell>
+                  <TableCell colSpan={3} className="text-center py-4">Loading...</TableCell>
                 </TableRow>
               ) : departments.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-4">No departments found</TableCell>
+                  <TableCell colSpan={3} className="text-center py-4">No departments found</TableCell>
                 </TableRow>
               ) : (
                 departments.map((department: DepartmentWithEmployeeCount) => (
-                  <TableRow key={department.id}>
-                    <TableCell className="font-medium">{department.name}</TableCell>
-                    <TableCell>{department.location}</TableCell>
+                  <TableRow key={department.deptcode}>
+                    <TableCell className="font-medium">{department.deptname}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Users size={16} className="text-muted-foreground" />
@@ -331,24 +328,10 @@ const Departments = () => {
             <form onSubmit={addForm.handleSubmit(handleAddDepartment)} className="space-y-4">
               <FormField
                 control={addForm.control}
-                name="name"
+                name="deptname"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Department Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={addForm.control}
-                name="location"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Location</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -391,24 +374,10 @@ const Departments = () => {
             <form onSubmit={editForm.handleSubmit(handleUpdateDepartment)} className="space-y-4">
               <FormField
                 control={editForm.control}
-                name="name"
+                name="deptname"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Department Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={editForm.control}
-                name="location"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Location</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -444,7 +413,7 @@ const Departments = () => {
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {selectedDepartment?.name}? This action cannot be undone.
+              Are you sure you want to delete {selectedDepartment?.deptname}? This action cannot be undone.
               {selectedDepartment && selectedDepartment.employee_count > 0 && (
                 <p className="mt-2 text-destructive">
                   Warning: This department has {selectedDepartment.employee_count} employee{selectedDepartment.employee_count !== 1 && 's'} assigned to it.

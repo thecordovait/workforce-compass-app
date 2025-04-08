@@ -29,6 +29,11 @@ export interface JobHistory {
   salary: number | null;
 }
 
+// Adding DepartmentWithEmployeeCount interface that was missing
+export interface DepartmentWithEmployeeCount extends Department {
+  employee_count: number;
+}
+
 // These are helpers for components that expect the newer schema format
 export interface EmployeeDisplay {
   id: string;
@@ -62,5 +67,6 @@ export const mapDepartmentToDisplay = (dept: Department): DepartmentDisplay => {
   return {
     id: dept.deptcode,
     name: dept.deptname,
+    // Note: location is not in original schema, so it's not mapped
   };
 };

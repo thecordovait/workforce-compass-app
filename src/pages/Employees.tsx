@@ -53,13 +53,14 @@ import { Employee, Department } from '@/types/database';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 
 const employeeFormSchema = z.object({
-  first_name: z.string().min(1, { message: 'First name is required' }),
-  last_name: z.string().min(1, { message: 'Last name is required' }),
-  email: z.string().email({ message: 'Please enter a valid email' }),
-  hire_date: z.string().min(1, { message: 'Hire date is required' }),
-  salary: z.coerce.number().min(0, { message: 'Salary must be a positive number' }),
-  department_id: z.string().min(1, { message: 'Department is required' }),
-  job_title: z.string().min(1, { message: 'Job title is required' }),
+  firstname: z.string().min(1, { message: 'First name is required' }),
+  lastname: z.string().min(1, { message: 'Last name is required' }),
+  gender: z.string().optional(),
+  birthdate: z.string().optional(),
+  hiredate: z.string().min(1, { message: 'Hire date is required' }),
+  deptcode: z.string().optional(),
+  jobcode: z.string().optional(),
+  salary: z.coerce.number().min(0, { message: 'Salary must be a positive number' }).optional(),
 });
 
 type EmployeeFormValues = z.infer<typeof employeeFormSchema>;
@@ -79,15 +80,19 @@ const Employees = () => {
     queryKey: ['employees', searchTerm],
     queryFn: async () => {
       let query = supabase
-        .from('employees')
+        .from('employee')
         .select(`
           *,
-          departments(name)
+          jobhistory!inner (
+            jobcode,
+            deptcode,
+            salary
+          )
         `)
-        .order('last_name', { ascending: true });
+        .order('lastname', { ascending: true });
       
       if (searchTerm) {
-        query = query.or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,job_title.ilike.%${searchTerm}%`);
+        query = query.or(`firstname.ilike.%${searchTerm}%,lastname.ilike.%${searchTerm}%`);
       }
       
       const { data, error } = await query;
@@ -102,9 +107,23 @@ const Employees = () => {
     queryKey: ['departments'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('departments')
+        .from('department')
         .select('*')
-        .order('name', { ascending: true });
+        .order('deptname', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch jobs for dropdown
+  const { data: jobs = [] } = useQuery({
+    queryKey: ['jobs'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('job')
+        .select('*')
+        .order('jobdesc', { ascending: true });
       
       if (error) throw error;
       return data || [];
@@ -114,21 +133,37 @@ const Employees = () => {
   // Add employee mutation
   const addEmployeeMutation = useMutation({
     mutationFn: async (newEmployee: EmployeeFormValues) => {
-      const { data, error } = await supabase
-        .from('employees')
+      // First, create the employee
+      const { data: empData, error: empError } = await supabase
+        .from('employee')
         .insert([{
-          first_name: newEmployee.first_name,
-          last_name: newEmployee.last_name,
-          email: newEmployee.email,
-          hire_date: newEmployee.hire_date,
-          salary: newEmployee.salary,
-          department_id: newEmployee.department_id,
-          job_title: newEmployee.job_title
+          empno: Date.now().toString(), // Generate a simple unique ID
+          firstname: newEmployee.firstname,
+          lastname: newEmployee.lastname,
+          gender: newEmployee.gender,
+          birthdate: newEmployee.birthdate,
+          hiredate: newEmployee.hiredate
         }])
         .select();
       
-      if (error) throw error;
-      return data;
+      if (empError) throw empError;
+      
+      // Then, add job history if department and job are provided
+      if (empData && empData[0] && newEmployee.deptcode && newEmployee.jobcode) {
+        const { error: jobHistoryError } = await supabase
+          .from('jobhistory')
+          .insert([{
+            empno: empData[0].empno,
+            jobcode: newEmployee.jobcode,
+            deptcode: newEmployee.deptcode,
+            effdate: new Date().toISOString().split('T')[0],
+            salary: newEmployee.salary || 0
+          }]);
+          
+        if (jobHistoryError) throw jobHistoryError;
+      }
+      
+      return empData;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
@@ -150,23 +185,38 @@ const Employees = () => {
 
   // Update employee mutation
   const updateEmployeeMutation = useMutation({
-    mutationFn: async ({ id, ...updateData }: { id: string } & EmployeeFormValues) => {
-      const { data, error } = await supabase
-        .from('employees')
+    mutationFn: async ({ empno, ...updateData }: { empno: string } & EmployeeFormValues) => {
+      // Update employee info
+      const { data: empData, error: empError } = await supabase
+        .from('employee')
         .update({
-          first_name: updateData.first_name,
-          last_name: updateData.last_name,
-          email: updateData.email,
-          hire_date: updateData.hire_date,
-          salary: updateData.salary,
-          department_id: updateData.department_id,
-          job_title: updateData.job_title
+          firstname: updateData.firstname,
+          lastname: updateData.lastname,
+          gender: updateData.gender,
+          birthdate: updateData.birthdate,
+          hiredate: updateData.hiredate
         })
-        .eq('id', id)
+        .eq('empno', empno)
         .select();
       
-      if (error) throw error;
-      return data;
+      if (empError) throw empError;
+      
+      // Update job history if department and job are provided
+      if (updateData.deptcode && updateData.jobcode) {
+        const { error: jobHistoryError } = await supabase
+          .from('jobhistory')
+          .upsert([{
+            empno: empno,
+            jobcode: updateData.jobcode,
+            deptcode: updateData.deptcode,
+            effdate: new Date().toISOString().split('T')[0],
+            salary: updateData.salary || 0
+          }]);
+          
+        if (jobHistoryError) throw jobHistoryError;
+      }
+      
+      return empData;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
@@ -187,13 +237,22 @@ const Employees = () => {
 
   // Delete employee mutation
   const deleteEmployeeMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('employees')
+    mutationFn: async (empno: string) => {
+      // First delete job history entries
+      const { error: jobHistoryError } = await supabase
+        .from('jobhistory')
         .delete()
-        .eq('id', id);
+        .eq('empno', empno);
       
-      if (error) throw error;
+      if (jobHistoryError) throw jobHistoryError;
+      
+      // Then delete the employee
+      const { error: empError } = await supabase
+        .from('employee')
+        .delete()
+        .eq('empno', empno);
+      
+      if (empError) throw empError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
@@ -217,26 +276,28 @@ const Employees = () => {
   const addForm = useForm<EmployeeFormValues>({
     resolver: zodResolver(employeeFormSchema),
     defaultValues: {
-      first_name: '',
-      last_name: '',
-      email: '',
-      hire_date: new Date().toISOString().split('T')[0],
+      firstname: '',
+      lastname: '',
+      gender: '',
+      birthdate: '',
+      hiredate: new Date().toISOString().split('T')[0],
+      deptcode: '',
+      jobcode: '',
       salary: 0,
-      department_id: '',
-      job_title: '',
     },
   });
 
   const editForm = useForm<EmployeeFormValues>({
     resolver: zodResolver(employeeFormSchema),
     defaultValues: {
-      first_name: '',
-      last_name: '',
-      email: '',
-      hire_date: '',
+      firstname: '',
+      lastname: '',
+      gender: '',
+      birthdate: '',
+      hiredate: '',
+      deptcode: '',
+      jobcode: '',
       salary: 0,
-      department_id: '',
-      job_title: '',
     },
   });
 
@@ -249,27 +310,32 @@ const Employees = () => {
     if (selectedEmployee) {
       updateEmployeeMutation.mutate({
         ...data,
-        id: selectedEmployee.id,
+        empno: selectedEmployee.empno,
       });
     }
   };
 
   const handleDeleteEmployee = () => {
     if (selectedEmployee) {
-      deleteEmployeeMutation.mutate(selectedEmployee.id);
+      deleteEmployeeMutation.mutate(selectedEmployee.empno);
     }
   };
 
   const openEditDialog = (employee: Employee) => {
     setSelectedEmployee(employee);
+    
+    // Get the employee's current job details
+    const jobHistory = employee.jobhistory ? employee.jobhistory[0] : null;
+    
     editForm.reset({
-      first_name: employee.first_name,
-      last_name: employee.last_name,
-      email: employee.email,
-      hire_date: employee.hire_date ? new Date(employee.hire_date).toISOString().split('T')[0] : '',
-      salary: employee.salary,
-      department_id: employee.department_id,
-      job_title: employee.job_title,
+      firstname: employee.firstname || '',
+      lastname: employee.lastname || '',
+      gender: employee.gender || '',
+      birthdate: employee.birthdate || '',
+      hiredate: employee.hiredate || '',
+      deptcode: jobHistory?.deptcode || '',
+      jobcode: jobHistory?.jobcode || '',
+      salary: jobHistory?.salary || 0,
     });
     setIsEditDialogOpen(true);
   };
@@ -315,9 +381,8 @@ const Employees = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Job Title</TableHead>
+                <TableHead>Job</TableHead>
                 <TableHead>Department</TableHead>
-                <TableHead>Email</TableHead>
                 <TableHead>Hire Date</TableHead>
                 <TableHead>Salary</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -326,49 +391,54 @@ const Employees = () => {
             <TableBody>
               {isLoadingEmployees ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-4">Loading...</TableCell>
+                  <TableCell colSpan={6} className="text-center py-4">Loading...</TableCell>
                 </TableRow>
               ) : filteredEmployees.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-4">No employees found</TableCell>
+                  <TableCell colSpan={6} className="text-center py-4">No employees found</TableCell>
                 </TableRow>
               ) : (
-                filteredEmployees.map((employee: any) => (
-                  <TableRow key={employee.id}>
-                    <TableCell>
-                      <div className="font-medium">
-                        {employee.first_name} {employee.last_name}
-                      </div>
-                    </TableCell>
-                    <TableCell>{employee.job_title}</TableCell>
-                    <TableCell>{employee.departments?.name}</TableCell>
-                    <TableCell>{employee.email}</TableCell>
-                    <TableCell>
-                      {employee.hire_date && format(new Date(employee.hire_date), 'MMM d, yyyy')}
-                    </TableCell>
-                    <TableCell>${employee.salary?.toLocaleString()}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditDialog(employee)}
-                        >
-                          <Edit className="h-4 w-4" />
-                          <span className="sr-only">Edit</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openDeleteDialog(employee)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                          <span className="sr-only">Delete</span>
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                filteredEmployees.map((employee: any) => {
+                  const jobHistory = employee.jobhistory ? employee.jobhistory[0] : null;
+                  const department = departments.find(d => d.deptcode === jobHistory?.deptcode);
+                  const job = jobs.find(j => j.jobcode === jobHistory?.jobcode);
+                  
+                  return (
+                    <TableRow key={employee.empno}>
+                      <TableCell>
+                        <div className="font-medium">
+                          {employee.firstname} {employee.lastname}
+                        </div>
+                      </TableCell>
+                      <TableCell>{job?.jobdesc || jobHistory?.jobcode || 'N/A'}</TableCell>
+                      <TableCell>{department?.deptname || jobHistory?.deptcode || 'N/A'}</TableCell>
+                      <TableCell>
+                        {employee.hiredate && format(new Date(employee.hiredate), 'MMM d, yyyy')}
+                      </TableCell>
+                      <TableCell>${jobHistory?.salary?.toLocaleString() || '0'}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditDialog(employee)}
+                          >
+                            <Edit className="h-4 w-4" />
+                            <span className="sr-only">Edit</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openDeleteDialog(employee)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                            <span className="sr-only">Delete</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -389,7 +459,7 @@ const Employees = () => {
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={addForm.control}
-                  name="first_name"
+                  name="firstname"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>First Name</FormLabel>
@@ -402,7 +472,7 @@ const Employees = () => {
                 />
                 <FormField
                   control={addForm.control}
-                  name="last_name"
+                  name="lastname"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Last Name</FormLabel>
@@ -415,24 +485,51 @@ const Employees = () => {
                 />
               </div>
               
-              <FormField
-                control={addForm.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="email" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={addForm.control}
+                  name="gender"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gender</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select gender" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="M">Male</SelectItem>
+                          <SelectItem value="F">Female</SelectItem>
+                          <SelectItem value="O">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={addForm.control}
+                  name="birthdate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Birth Date</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={addForm.control}
-                  name="hire_date"
+                  name="hiredate"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Hire Date</FormLabel>
@@ -461,7 +558,7 @@ const Employees = () => {
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={addForm.control}
-                  name="department_id"
+                  name="deptcode"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Department</FormLabel>
@@ -476,8 +573,8 @@ const Employees = () => {
                         </FormControl>
                         <SelectContent>
                           {departments.map((department) => (
-                            <SelectItem key={department.id} value={department.id}>
-                              {department.name}
+                            <SelectItem key={department.deptcode} value={department.deptcode}>
+                              {department.deptname}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -488,13 +585,27 @@ const Employees = () => {
                 />
                 <FormField
                   control={addForm.control}
-                  name="job_title"
+                  name="jobcode"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Job Title</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
+                      <FormLabel>Job</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select job" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {jobs.map((job) => (
+                            <SelectItem key={job.jobcode} value={job.jobcode}>
+                              {job.jobdesc}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -536,7 +647,7 @@ const Employees = () => {
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={editForm.control}
-                  name="first_name"
+                  name="firstname"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>First Name</FormLabel>
@@ -549,7 +660,7 @@ const Employees = () => {
                 />
                 <FormField
                   control={editForm.control}
-                  name="last_name"
+                  name="lastname"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Last Name</FormLabel>
@@ -562,24 +673,51 @@ const Employees = () => {
                 />
               </div>
               
-              <FormField
-                control={editForm.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="email" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="gender"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gender</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select gender" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="M">Male</SelectItem>
+                          <SelectItem value="F">Female</SelectItem>
+                          <SelectItem value="O">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="birthdate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Birth Date</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={editForm.control}
-                  name="hire_date"
+                  name="hiredate"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Hire Date</FormLabel>
@@ -608,7 +746,7 @@ const Employees = () => {
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={editForm.control}
-                  name="department_id"
+                  name="deptcode"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Department</FormLabel>
@@ -623,8 +761,8 @@ const Employees = () => {
                         </FormControl>
                         <SelectContent>
                           {departments.map((department) => (
-                            <SelectItem key={department.id} value={department.id}>
-                              {department.name}
+                            <SelectItem key={department.deptcode} value={department.deptcode}>
+                              {department.deptname}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -635,13 +773,27 @@ const Employees = () => {
                 />
                 <FormField
                   control={editForm.control}
-                  name="job_title"
+                  name="jobcode"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Job Title</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
+                      <FormLabel>Job</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select job" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {jobs.map((job) => (
+                            <SelectItem key={job.jobcode} value={job.jobcode}>
+                              {job.jobdesc}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -675,7 +827,7 @@ const Employees = () => {
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {selectedEmployee?.first_name} {selectedEmployee?.last_name}? This action cannot be undone.
+              Are you sure you want to delete {selectedEmployee?.firstname} {selectedEmployee?.lastname}? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:justify-end">
