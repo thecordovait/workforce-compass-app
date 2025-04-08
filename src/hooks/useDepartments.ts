@@ -15,7 +15,7 @@ export const useDepartments = () => {
     queryKey: ['departmentsWithCount'],
     queryFn: async () => {
       try {
-        // Remove explicit type parameter that was causing the error
+        // Don't specify type parameters for rpc to allow TypeScript to infer the return type
         const { data, error } = await supabase.rpc('get_departments_with_employee_count');
         
         if (error) throw error;

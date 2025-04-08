@@ -35,7 +35,7 @@ const Departments = () => {
     deleteDepartmentMutation 
   } = useDepartments();
 
-  // Ensure defaultValues matches the schema - deptname is not optional
+  // Make sure defaultValues match the schema requirement of deptname
   const addForm = useForm<DepartmentFormValues>({
     resolver: zodResolver(departmentFormSchema),
     defaultValues: {
