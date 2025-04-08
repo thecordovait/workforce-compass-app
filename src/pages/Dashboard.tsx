@@ -17,7 +17,7 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { Employee, Department, JobHistory } from '@/types/database';
+import { Employee, Department, JobHistory, mapEmployeeToDisplay } from '@/types/database';
 import { format } from 'date-fns';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 
@@ -47,7 +47,7 @@ const Dashboard = () => {
     queryKey: ['employeeCount'],
     queryFn: async () => {
       const { count, error } = await supabase
-        .from('employees')
+        .from('employee')
         .select('*', { count: 'exact', head: true });
       
       if (error) throw error;
@@ -60,7 +60,7 @@ const Dashboard = () => {
     queryKey: ['departmentCount'],
     queryFn: async () => {
       const { count, error } = await supabase
-        .from('departments')
+        .from('department')
         .select('*', { count: 'exact', head: true });
       
       if (error) throw error;
@@ -73,13 +73,13 @@ const Dashboard = () => {
     queryKey: ['recentJobHistory'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('job_history')
+        .from('jobhistory')
         .select(`
           *,
-          employees(first_name, last_name),
-          departments(name)
+          employee (firstname, lastname),
+          department (deptname)
         `)
-        .order('created_at', { ascending: false })
+        .order('effdate', { ascending: false })
         .limit(5);
       
       if (error) throw error;
@@ -91,24 +91,17 @@ const Dashboard = () => {
   const { data: avgSalary = '0', isLoading: isLoadingSalary } = useQuery({
     queryKey: ['avgSalary'],
     queryFn: async () => {
+      // Calculate average directly since RPC function might not exist
       const { data, error } = await supabase
-        .rpc('get_average_salary');
+        .from('jobhistory')
+        .select('salary');
       
-      // If the RPC function isn't set up, fallback to a direct query
-      if (error) {
-        const { data, error: fetchError } = await supabase
-          .from('employees')
-          .select('salary');
-        
-        if (fetchError) throw fetchError;
-        
-        const sum = (data || []).reduce((acc, curr) => acc + (curr.salary || 0), 0);
-        return data && data.length > 0 
-          ? `$${(sum / data.length).toFixed(2)}`
-          : '$0.00';
-      }
+      if (error) throw error;
       
-      return data ? `$${parseFloat(data).toFixed(2)}` : '$0.00';
+      const sum = (data || []).reduce((acc, curr) => acc + (curr.salary || 0), 0);
+      return data && data.length > 0 
+        ? `$${(sum / data.length).toFixed(2)}`
+        : '$0.00';
     }
   });
 
@@ -154,8 +147,8 @@ const Dashboard = () => {
                 <TableRow>
                   <TableHead>Employee</TableHead>
                   <TableHead>Department</TableHead>
-                  <TableHead>Previous Position</TableHead>
-                  <TableHead>New Position</TableHead>
+                  <TableHead>Job Code</TableHead>
+                  <TableHead>Salary</TableHead>
                   <TableHead>Date</TableHead>
                 </TableRow>
               </TableHeader>
@@ -170,15 +163,15 @@ const Dashboard = () => {
                   </TableRow>
                 ) : (
                   recentJobHistory.map((history: any) => (
-                    <TableRow key={history.id}>
+                    <TableRow key={history.empno + history.effdate}>
                       <TableCell>
-                        {history.employees?.first_name} {history.employees?.last_name}
+                        {history.employee?.firstname} {history.employee?.lastname}
                       </TableCell>
-                      <TableCell>{history.departments?.name}</TableCell>
-                      <TableCell>{history.previous_job_title}</TableCell>
-                      <TableCell>{history.new_job_title}</TableCell>
+                      <TableCell>{history.department?.deptname}</TableCell>
+                      <TableCell>{history.jobcode}</TableCell>
+                      <TableCell>${history.salary?.toFixed(2) || '0.00'}</TableCell>
                       <TableCell>
-                        {format(new Date(history.created_at), 'MMM d, yyyy')}
+                        {format(new Date(history.effdate), 'MMM d, yyyy')}
                       </TableCell>
                     </TableRow>
                   ))

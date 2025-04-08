@@ -1,35 +1,66 @@
 
+// Define types that match your actual Supabase database schema
+
 export interface Employee {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  hire_date: string;
-  salary: number;
-  department_id: string;
-  job_title: string;
-  created_at: string;
+  empno: string;
+  firstname: string | null;
+  lastname: string | null;
+  gender: string | null;
+  birthdate: string | null;
+  hiredate: string | null;
+  sepdate: string | null;
 }
 
 export interface Department {
-  id: string;
-  name: string;
-  location: string;
-  manager_id: string | null;
-  created_at: string;
+  deptcode: string;
+  deptname: string | null;
+}
+
+export interface Job {
+  jobcode: string;
+  jobdesc: string | null;
 }
 
 export interface JobHistory {
-  id: string;
-  employee_id: string;
-  department_id: string;
-  previous_job_title: string;
-  new_job_title: string;
-  start_date: string;
-  end_date: string | null;
-  created_at: string;
+  empno: string;
+  jobcode: string;
+  deptcode: string | null;
+  effdate: string;
+  salary: number | null;
 }
 
-export interface DepartmentWithEmployeeCount extends Department {
-  employee_count: number;
+// These are helpers for components that expect the newer schema format
+export interface EmployeeDisplay {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email?: string;
+  hire_date: string | null;
+  department_id?: string;
+  job_title?: string;
 }
+
+export interface DepartmentDisplay {
+  id: string;
+  name: string | null;
+  location?: string;
+  manager_id?: string | null;
+  employee_count?: number;
+}
+
+// Helper functions to convert between database schema and display formats
+export const mapEmployeeToDisplay = (emp: Employee): EmployeeDisplay => {
+  return {
+    id: emp.empno,
+    first_name: emp.firstname,
+    last_name: emp.lastname,
+    hire_date: emp.hiredate,
+  };
+};
+
+export const mapDepartmentToDisplay = (dept: Department): DepartmentDisplay => {
+  return {
+    id: dept.deptcode,
+    name: dept.deptname,
+  };
+};

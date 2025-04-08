@@ -43,20 +43,20 @@ const JobHistoryPage = () => {
     queryKey: ['jobHistory', employeeFilter, departmentFilter],
     queryFn: async () => {
       let query = supabase
-        .from('job_history')
+        .from('jobhistory')
         .select(`
           *,
-          employees(id, first_name, last_name),
-          departments(id, name)
+          employee (empno, firstname, lastname),
+          department (deptcode, deptname)
         `)
-        .order('start_date', { ascending: false });
+        .order('effdate', { ascending: false });
       
       if (employeeFilter) {
-        query = query.eq('employee_id', employeeFilter);
+        query = query.eq('empno', employeeFilter);
       }
       
       if (departmentFilter) {
-        query = query.eq('department_id', departmentFilter);
+        query = query.eq('deptcode', departmentFilter);
       }
       
       const { data, error } = await query;
@@ -71,9 +71,9 @@ const JobHistoryPage = () => {
     queryKey: ['employeesDropdown'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('employees')
-        .select('id, first_name, last_name')
-        .order('last_name', { ascending: true });
+        .from('employee')
+        .select('empno, firstname, lastname')
+        .order('lastname', { ascending: true });
       
       if (error) throw error;
       return data || [];
@@ -85,9 +85,9 @@ const JobHistoryPage = () => {
     queryKey: ['departmentsDropdown'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('departments')
-        .select('id, name')
-        .order('name', { ascending: true });
+        .from('department')
+        .select('deptcode, deptname')
+        .order('deptname', { ascending: true });
       
       if (error) throw error;
       return data || [];
@@ -142,8 +142,8 @@ const JobHistoryPage = () => {
                         <SelectContent>
                           <SelectItem value="">All Employees</SelectItem>
                           {employees.map((employee: Employee) => (
-                            <SelectItem key={employee.id} value={employee.id}>
-                              {employee.first_name} {employee.last_name}
+                            <SelectItem key={employee.empno} value={employee.empno}>
+                              {employee.firstname} {employee.lastname}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -163,8 +163,8 @@ const JobHistoryPage = () => {
                         <SelectContent>
                           <SelectItem value="">All Departments</SelectItem>
                           {departments.map((department: Department) => (
-                            <SelectItem key={department.id} value={department.id}>
-                              {department.name}
+                            <SelectItem key={department.deptcode} value={department.deptcode}>
+                              {department.deptname}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -188,15 +188,25 @@ const JobHistoryPage = () => {
             {(employeeFilter || departmentFilter) && (
               <div className="flex items-center gap-2 text-sm">
                 <div className="bg-muted text-muted-foreground rounded-md px-2 py-1">
-                  {employeeFilter && employees.find((e: Employee) => e.id === employeeFilter) && (
+                  {employeeFilter && employees.length > 0 && (
                     <span className="inline-flex items-center">
-                      Employee: {employees.find((e: Employee) => e.id === employeeFilter)?.first_name} {employees.find((e: Employee) => e.id === employeeFilter)?.last_name}
+                      Employee: {
+                        (() => {
+                          const emp = employees.find(e => e.empno === employeeFilter);
+                          return emp ? `${emp.firstname} ${emp.lastname}` : '';
+                        })()
+                      }
                     </span>
                   )}
-                  {departmentFilter && departments.find((d: Department) => d.id === departmentFilter) && (
+                  {departmentFilter && departments.length > 0 && (
                     <span className="inline-flex items-center">
                       {employeeFilter && ' • '}
-                      Department: {departments.find((d: Department) => d.id === departmentFilter)?.name}
+                      Department: {
+                        (() => {
+                          const dept = departments.find(d => d.deptcode === departmentFilter);
+                          return dept ? dept.deptname : '';
+                        })()
+                      }
                     </span>
                   )}
                 </div>
@@ -219,38 +229,31 @@ const JobHistoryPage = () => {
               <TableRow>
                 <TableHead>Employee</TableHead>
                 <TableHead>Department</TableHead>
-                <TableHead>Previous Position</TableHead>
-                <TableHead>New Position</TableHead>
-                <TableHead>Start Date</TableHead>
-                <TableHead>End Date</TableHead>
+                <TableHead>Job Code</TableHead>
+                <TableHead>Salary</TableHead>
+                <TableHead>Date</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoadingJobHistory ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-4">Loading...</TableCell>
+                  <TableCell colSpan={5} className="text-center py-4">Loading...</TableCell>
                 </TableRow>
               ) : jobHistory.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-4">No job history records found</TableCell>
+                  <TableCell colSpan={5} className="text-center py-4">No job history records found</TableCell>
                 </TableRow>
               ) : (
                 jobHistory.map((history: any) => (
-                  <TableRow key={history.id}>
+                  <TableRow key={`${history.empno}-${history.effdate}-${history.jobcode}`}>
                     <TableCell className="font-medium">
-                      {history.employees?.first_name} {history.employees?.last_name}
+                      {history.employee?.firstname} {history.employee?.lastname}
                     </TableCell>
-                    <TableCell>{history.departments?.name}</TableCell>
-                    <TableCell>{history.previous_job_title}</TableCell>
-                    <TableCell>{history.new_job_title}</TableCell>
+                    <TableCell>{history.department?.deptname}</TableCell>
+                    <TableCell>{history.jobcode}</TableCell>
+                    <TableCell>${history.salary?.toFixed(2) || '0.00'}</TableCell>
                     <TableCell>
-                      {history.start_date && format(new Date(history.start_date), 'MMM d, yyyy')}
-                    </TableCell>
-                    <TableCell>
-                      {history.end_date 
-                        ? format(new Date(history.end_date), 'MMM d, yyyy')
-                        : 'Current'
-                      }
+                      {history.effdate && format(new Date(history.effdate), 'MMM d, yyyy')}
                     </TableCell>
                   </TableRow>
                 ))
