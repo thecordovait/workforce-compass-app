@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -59,14 +58,13 @@ const Departments = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: departments = [], isLoading } = useQuery({
+  const { data: departments = [], isLoading } = useQuery<DepartmentWithEmployeeCount[]>({
     queryKey: ['departmentsWithCount'],
     queryFn: async () => {
       try {
-        // Fix: Add the second type parameter (empty object for no input parameters)
-        const { data, error } = await supabase.rpc<DepartmentWithEmployeeCount[], {}>('get_departments_with_employee_count');
+        const { data, error } = await supabase.rpc('get_departments_with_employee_count');
         if (error) throw error;
-        return data || [];
+        return data as DepartmentWithEmployeeCount[] || [];
       } catch (rpcError) {
         console.log('RPC not available, using manual join');
         
