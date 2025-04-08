@@ -33,7 +33,7 @@ export type Database = {
       department: {
         Row: {
           deptcode: string
-          deptname: string | null
+          deptname: string
         }
         Insert: {
           deptcode: string
