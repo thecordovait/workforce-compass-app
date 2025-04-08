@@ -63,8 +63,8 @@ const Departments = () => {
     queryKey: ['departmentsWithCount'],
     queryFn: async () => {
       try {
-        // Fixed type for RPC call - specify 'get_departments_with_employee_count' as a string literal type
-        const { data, error } = await supabase.rpc<DepartmentWithEmployeeCount[]>('get_departments_with_employee_count' as any);
+        // Fixed type for RPC call - specify both the return type and input params (empty object for no params)
+        const { data, error } = await supabase.rpc<DepartmentWithEmployeeCount[], {}>('get_departments_with_employee_count' as any, {});
         if (error) throw error;
         return data as DepartmentWithEmployeeCount[] || [];
       } catch (rpcError) {
