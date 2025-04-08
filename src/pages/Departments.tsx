@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -59,20 +58,16 @@ const Departments = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch departments with employee count
   const { data: departments = [], isLoading } = useQuery({
     queryKey: ['departmentsWithCount'],
     queryFn: async () => {
-      // Try to use a custom RPC function first
       try {
         const { data, error } = await supabase.rpc('get_departments_with_employee_count');
         if (error) throw error;
         return data || [];
       } catch (rpcError) {
-        // Fallback to manual join if RPC isn't available
         console.log('RPC not available, using manual join');
         
-        // First get all departments
         const { data: deptData, error: deptError } = await supabase
           .from('department')
           .select('*')
@@ -80,7 +75,6 @@ const Departments = () => {
         
         if (deptError) throw deptError;
         
-        // Then get employee counts per department
         const departmentsWithCount = await Promise.all(
           (deptData || []).map(async (dept: Department) => {
             const { count, error: countError } = await supabase
@@ -102,13 +96,12 @@ const Departments = () => {
     },
   });
 
-  // Add department mutation
   const addDepartmentMutation = useMutation({
     mutationFn: async (newDepartment: DepartmentFormValues) => {
       const { data, error } = await supabase
         .from('department')
         .insert([{ 
-          deptcode: Date.now().toString(), // Generate a simple unique ID
+          deptcode: Date.now().toString(),
           deptname: newDepartment.deptname
         }])
         .select();
@@ -134,7 +127,6 @@ const Departments = () => {
     },
   });
 
-  // Update department mutation
   const updateDepartmentMutation = useMutation({
     mutationFn: async ({ deptcode, deptname }: Department) => {
       const { data, error } = await supabase
@@ -163,7 +155,6 @@ const Departments = () => {
     },
   });
 
-  // Delete department mutation
   const deleteDepartmentMutation = useMutation({
     mutationFn: async (deptcode: string) => {
       const { error } = await supabase
@@ -191,7 +182,6 @@ const Departments = () => {
     },
   });
 
-  // Forms
   const addForm = useForm<DepartmentFormValues>({
     resolver: zodResolver(departmentFormSchema),
     defaultValues: {
@@ -208,7 +198,6 @@ const Departments = () => {
     },
   });
 
-  // Handlers
   const handleAddDepartment = (data: DepartmentFormValues) => {
     addDepartmentMutation.mutate(data);
   };
@@ -232,7 +221,7 @@ const Departments = () => {
     setSelectedDepartment(department);
     editForm.reset({
       deptname: department.deptname || '',
-      location: '',  // Note: location is not in the actual schema
+      location: '',
     });
     setIsEditDialogOpen(true);
   };
@@ -315,7 +304,6 @@ const Departments = () => {
         </div>
       </div>
 
-      {/* Add Department Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -361,7 +349,6 @@ const Departments = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Department Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -407,7 +394,6 @@ const Departments = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
