@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -39,8 +39,30 @@ const JobHistoryPage = () => {
   const [employeeFilter, setEmployeeFilter] = useState<string>('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
 
+  useEffect(() => {
+    // Add logging on component mount to track initialization
+    console.log("JobHistory component mounted");
+    
+    // Check Supabase connection
+    const checkSupabase = async () => {
+      try {
+        const { data, error } = await supabase.from('jobhistory').select('*').limit(1);
+        console.log("Supabase connection check:", { data, error });
+        if (error) {
+          toast.error("Supabase connection issue: " + error.message);
+        } else {
+          console.log("Supabase connection successful");
+        }
+      } catch (e) {
+        console.error("Failed to check Supabase connection:", e);
+      }
+    };
+    
+    checkSupabase();
+  }, []);
+
   // Fetch job history
-  const { data: jobHistory = [], isLoading: isLoadingJobHistory, refetch } = useQuery({
+  const { data: jobHistory = [], isLoading: isLoadingJobHistory, refetch, error } = useQuery({
     queryKey: ['jobHistory', employeeFilter, departmentFilter],
     queryFn: async () => {
       try {
@@ -74,10 +96,17 @@ const JobHistoryPage = () => {
       } catch (error) {
         console.error("Failed to fetch job history:", error);
         toast.error("Failed to load job history data");
-        return [];
+        throw error; // Rethrow to let React Query handle the error state
       }
     },
   });
+
+  // Log error if present
+  useEffect(() => {
+    if (error) {
+      console.error("Job history query error:", error);
+    }
+  }, [error]);
 
   // Fetch employees for dropdown
   const { data: employees = [] } = useQuery({
@@ -271,6 +300,12 @@ const JobHistoryPage = () => {
               {isLoadingJobHistory ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-4">Loading...</TableCell>
+                </TableRow>
+              ) : error ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-4 text-destructive">
+                    Error loading data: {(error as Error).message}
+                  </TableCell>
                 </TableRow>
               ) : jobHistory.length === 0 ? (
                 <TableRow>
