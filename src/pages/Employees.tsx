@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -49,8 +48,12 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
-import { Employee, Department } from '@/types/database';
+import { Employee, Department, Job, JobHistory } from '@/types/database';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+
+interface EmployeeWithJobHistory extends Employee {
+  jobhistory: JobHistory[];
+}
 
 const employeeFormSchema = z.object({
   firstname: z.string().min(1, { message: 'First name is required' }),
@@ -70,12 +73,11 @@ const Employees = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeWithJobHistory | null>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch employees
   const { data: employees = [], isLoading: isLoadingEmployees } = useQuery({
     queryKey: ['employees', searchTerm],
     queryFn: async () => {
@@ -98,11 +100,10 @@ const Employees = () => {
       const { data, error } = await query;
       
       if (error) throw error;
-      return data || [];
+      return data as EmployeeWithJobHistory[] || [];
     },
   });
 
-  // Fetch departments for dropdown
   const { data: departments = [] } = useQuery({
     queryKey: ['departments'],
     queryFn: async () => {
@@ -116,7 +117,6 @@ const Employees = () => {
     },
   });
 
-  // Fetch jobs for dropdown
   const { data: jobs = [] } = useQuery({
     queryKey: ['jobs'],
     queryFn: async () => {
@@ -130,14 +130,12 @@ const Employees = () => {
     },
   });
 
-  // Add employee mutation
   const addEmployeeMutation = useMutation({
     mutationFn: async (newEmployee: EmployeeFormValues) => {
-      // First, create the employee
       const { data: empData, error: empError } = await supabase
         .from('employee')
         .insert([{
-          empno: Date.now().toString(), // Generate a simple unique ID
+          empno: Date.now().toString(),
           firstname: newEmployee.firstname,
           lastname: newEmployee.lastname,
           gender: newEmployee.gender,
@@ -148,7 +146,6 @@ const Employees = () => {
       
       if (empError) throw empError;
       
-      // Then, add job history if department and job are provided
       if (empData && empData[0] && newEmployee.deptcode && newEmployee.jobcode) {
         const { error: jobHistoryError } = await supabase
           .from('jobhistory')
@@ -183,10 +180,8 @@ const Employees = () => {
     },
   });
 
-  // Update employee mutation
   const updateEmployeeMutation = useMutation({
     mutationFn: async ({ empno, ...updateData }: { empno: string } & EmployeeFormValues) => {
-      // Update employee info
       const { data: empData, error: empError } = await supabase
         .from('employee')
         .update({
@@ -201,7 +196,6 @@ const Employees = () => {
       
       if (empError) throw empError;
       
-      // Update job history if department and job are provided
       if (updateData.deptcode && updateData.jobcode) {
         const { error: jobHistoryError } = await supabase
           .from('jobhistory')
@@ -235,10 +229,8 @@ const Employees = () => {
     },
   });
 
-  // Delete employee mutation
   const deleteEmployeeMutation = useMutation({
     mutationFn: async (empno: string) => {
-      // First delete job history entries
       const { error: jobHistoryError } = await supabase
         .from('jobhistory')
         .delete()
@@ -246,7 +238,6 @@ const Employees = () => {
       
       if (jobHistoryError) throw jobHistoryError;
       
-      // Then delete the employee
       const { error: empError } = await supabase
         .from('employee')
         .delete()
@@ -272,7 +263,6 @@ const Employees = () => {
     },
   });
 
-  // Forms
   const addForm = useForm<EmployeeFormValues>({
     resolver: zodResolver(employeeFormSchema),
     defaultValues: {
@@ -301,7 +291,6 @@ const Employees = () => {
     },
   });
 
-  // Handlers
   const handleAddEmployee = (data: EmployeeFormValues) => {
     addEmployeeMutation.mutate(data);
   };
@@ -321,10 +310,9 @@ const Employees = () => {
     }
   };
 
-  const openEditDialog = (employee: Employee) => {
+  const openEditDialog = (employee: EmployeeWithJobHistory) => {
     setSelectedEmployee(employee);
     
-    // Get the employee's current job details
     const jobHistory = employee.jobhistory ? employee.jobhistory[0] : null;
     
     editForm.reset({
@@ -340,7 +328,7 @@ const Employees = () => {
     setIsEditDialogOpen(true);
   };
 
-  const openDeleteDialog = (employee: Employee) => {
+  const openDeleteDialog = (employee: EmployeeWithJobHistory) => {
     setSelectedEmployee(employee);
     setIsDeleteDialogOpen(true);
   };
@@ -398,7 +386,7 @@ const Employees = () => {
                   <TableCell colSpan={6} className="text-center py-4">No employees found</TableCell>
                 </TableRow>
               ) : (
-                filteredEmployees.map((employee: any) => {
+                filteredEmployees.map((employee: EmployeeWithJobHistory) => {
                   const jobHistory = employee.jobhistory ? employee.jobhistory[0] : null;
                   const department = departments.find(d => d.deptcode === jobHistory?.deptcode);
                   const job = jobs.find(j => j.jobcode === jobHistory?.jobcode);
@@ -445,7 +433,6 @@ const Employees = () => {
         </div>
       </div>
 
-      {/* Add Employee Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -633,7 +620,6 @@ const Employees = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Employee Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -821,7 +807,6 @@ const Employees = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>

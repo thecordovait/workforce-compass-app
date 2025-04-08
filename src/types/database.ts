@@ -9,6 +9,7 @@ export interface Employee {
   birthdate: string | null;
   hiredate: string | null;
   sepdate: string | null;
+  jobhistory?: JobHistory[]; // Add this for joins
 }
 
 export interface Department {
