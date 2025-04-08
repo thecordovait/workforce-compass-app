@@ -63,11 +63,11 @@ const Departments = () => {
     queryKey: ['departmentsWithCount'],
     queryFn: async () => {
       try {
-        // Fix: Call rpc without parameters
-        const { data, error } = await supabase.rpc('get_departments_with_employee_count');
+        // Fix: Use the correct typing for RPC call
+        const { data, error } = await supabase.rpc<DepartmentWithEmployeeCount[]>('get_departments_with_employee_count');
         
         if (error) throw error;
-        return data as DepartmentWithEmployeeCount[] || [];
+        return data || [];
       } catch (rpcError) {
         console.log('RPC not available, using manual join');
         
