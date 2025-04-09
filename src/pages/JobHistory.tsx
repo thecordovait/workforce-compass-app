@@ -1,26 +1,29 @@
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/utils/supabase/client";
 import { useState } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function JobHistoryPage() {
   const supabase = createClient();
 
   const [employeeFilter, setEmployeeFilter] = useState<string | undefined>(undefined);
   const [departmentFilter, setDepartmentFilter] = useState<string | undefined>(undefined);
-  const [filterOpen, setFilterOpen] = useState(false);
+  const [open, setOpen] = useState(false);
 
-  // Main Query
   const {
     data: jobHistory,
     isLoading,
@@ -37,13 +40,11 @@ export default function JobHistoryPage() {
       if (departmentFilter) query = query.eq("deptcode", departmentFilter);
 
       const { data, error } = await query;
-
       if (error) throw new Error(error.message);
       return data;
     },
   });
 
-  // Supporting Queries for Filters
   const { data: employees = [] } = useQuery({
     queryKey: ["employees"],
     queryFn: async () => {
@@ -67,23 +68,19 @@ export default function JobHistoryPage() {
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">Job History</h1>
 
-        <DropdownMenu open={filterOpen} onOpenChange={setFilterOpen}>
-          <DropdownMenuTrigger asChild>
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
             <Button variant="outline">Filter</Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56">
-            <DropdownMenuLabel>Filter by:</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-
-            {/* Employee Filter */}
-            <div className="px-2 py-1">
+          </PopoverTrigger>
+          <PopoverContent className="w-64 space-y-4">
+            <div>
               <label className="text-sm text-muted-foreground">Employee</label>
               <Select
                 value={employeeFilter}
                 onValueChange={(val) => {
                   setEmployeeFilter(val);
                   refetch();
-                  setFilterOpen(false);
+                  setOpen(false);
                 }}
               >
                 <SelectTrigger>
@@ -99,15 +96,14 @@ export default function JobHistoryPage() {
               </Select>
             </div>
 
-            {/* Department Filter */}
-            <div className="px-2 py-1">
+            <div>
               <label className="text-sm text-muted-foreground">Department</label>
               <Select
                 value={departmentFilter}
                 onValueChange={(val) => {
                   setDepartmentFilter(val);
                   refetch();
-                  setFilterOpen(false);
+                  setOpen(false);
                 }}
               >
                 <SelectTrigger>
@@ -123,33 +119,30 @@ export default function JobHistoryPage() {
               </Select>
             </div>
 
-            {/* Clear Filters */}
             {(employeeFilter || departmentFilter) && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem
-                  checked={false}
-                  onCheckedChange={() => {
-                    setEmployeeFilter(undefined);
-                    setDepartmentFilter(undefined);
-                    refetch();
-                    setFilterOpen(false);
-                  }}
-                >
-                  Clear filters
-                </DropdownMenuCheckboxItem>
-              </>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setEmployeeFilter(undefined);
+                  setDepartmentFilter(undefined);
+                  refetch();
+                  setOpen(false);
+                }}
+                className="w-full"
+              >
+                Clear Filters
+              </Button>
             )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </PopoverContent>
+        </Popover>
       </div>
 
-      {/* Active Filter Labels */}
+      {/* Active Filters */}
       {(employeeFilter || departmentFilter) && (
         <div className="mb-4">
           <div className="bg-muted text-muted-foreground rounded-md px-2 py-1 text-sm inline-block">
             {employeeFilter && (
-              <span className="inline-flex items-center">
+              <span>
                 Employee:{" "}
                 {employees.find((e) => e.empno === employeeFilter)?.firstname}{" "}
                 {employees.find((e) => e.empno === employeeFilter)?.lastname}
@@ -157,7 +150,7 @@ export default function JobHistoryPage() {
             )}
             {employeeFilter && departmentFilter && <span className="mx-2">•</span>}
             {departmentFilter && (
-              <span className="inline-flex items-center">
+              <span>
                 Department:{" "}
                 {departments.find((d) => d.deptcode === departmentFilter)?.deptname}
               </span>
