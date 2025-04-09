@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -6,6 +7,7 @@ import {
   Search,
   Filter,
   RefreshCw,
+  FilterX,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +35,12 @@ import { format } from 'date-fns';
 import { JobHistory, Employee, Department } from '@/types/database';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { toast } from 'sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface JobHistoryRecord {
   jobcode: string;
@@ -54,6 +62,7 @@ interface JobHistoryRecord {
 const JobHistoryPage = () => {
   const [employeeFilter, setEmployeeFilter] = useState<string>('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
+  const [filterOpen, setFilterOpen] = useState(false);
 
   useEffect(() => {
     console.log("JobHistory component mounted");
@@ -167,6 +176,7 @@ const JobHistoryPage = () => {
   const handleClearFilters = () => {
     setEmployeeFilter('');
     setDepartmentFilter('');
+    setFilterOpen(false);
   };
 
   const handleRefresh = () => {
@@ -184,8 +194,9 @@ const JobHistoryPage = () => {
 
         <div className="flex flex-wrap items-center gap-4 justify-between">
           <div className="flex flex-wrap items-center gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
+            {/* Updated Filter button implementation using DropdownMenu instead of Popover */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-9">
                   <Filter className="mr-2 h-4 w-4" />
                   Filter
@@ -193,8 +204,8 @@ const JobHistoryPage = () => {
                     <span className="ml-1 rounded-full bg-primary w-2 h-2"></span>
                   )}
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-80 p-4" align="start">
                 <div className="grid gap-4">
                   <div className="space-y-2">
                     <h4 className="font-medium leading-none">Filters</h4>
@@ -253,12 +264,13 @@ const JobHistoryPage = () => {
                       onClick={handleClearFilters}
                       disabled={!employeeFilter && !departmentFilter}
                     >
+                      <FilterX className="mr-2 h-4 w-4" />
                       Clear Filters
                     </Button>
                   </div>
                 </div>
-              </PopoverContent>
-            </Popover>
+              </DropdownMenuContent>
+            </DropdownMenu>
             
             {(employeeFilter || departmentFilter) && (
               <div className="flex items-center gap-2 text-sm">
