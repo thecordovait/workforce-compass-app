@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Department, DepartmentWithEmployeeCount } from '@/types/database';
@@ -20,7 +21,7 @@ export const useDepartments = () => {
     queryFn: async (): Promise<DepartmentWithEmployeeCount[]> => {
       try {
         const { data, error } = await supabase
-          .rpc<DepartmentWithEmployeeCount[]>('get_departments_with_employee_count');
+          .rpc<DepartmentWithEmployeeCount[], Record<string, never>>('get_departments_with_employee_count');
         
         if (error) throw error;
         return data || [];
