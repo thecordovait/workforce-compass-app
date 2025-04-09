@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -77,30 +77,81 @@ const Employees = () => {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  useEffect(() => {
+    console.log("Employees component mounted");
+    
+    const checkSupabase = async () => {
+      try {
+        const { data, error } = await supabase.from('employee').select('*').limit(1);
+        console.log("Supabase employee check:", { data, error });
+        if (error) {
+          toast.error("Supabase connection issue: " + error.message);
+        }
+      } catch (e) {
+        console.error("Failed to check Supabase connection:", e);
+      }
+    };
+    
+    checkSupabase();
+  }, [toast]);
 
   const { data: employees = [], isLoading: isLoadingEmployees } = useQuery({
     queryKey: ['employees', searchTerm],
     queryFn: async () => {
-      let query = supabase
-        .from('employee')
-        .select(`
-          *,
-          jobhistory!inner (
-            jobcode,
-            deptcode,
-            salary
-          )
-        `)
-        .order('lastname', { ascending: true });
-      
-      if (searchTerm) {
-        query = query.or(`firstname.ilike.%${searchTerm}%,lastname.ilike.%${searchTerm}%`);
+      try {
+        console.log("Fetching employees with search term:", searchTerm);
+        
+        let employeeQuery = supabase
+          .from('employee')
+          .select('*')
+          .order('lastname', { ascending: true });
+        
+        if (searchTerm) {
+          employeeQuery = employeeQuery.or(`firstname.ilike.%${searchTerm}%,lastname.ilike.%${searchTerm}%`);
+        }
+        
+        const { data: employeeData, error: employeeError } = await employeeQuery;
+        
+        if (employeeError) {
+          console.error("Error fetching employees:", employeeError);
+          throw employeeError;
+        }
+        
+        console.log("Employee data:", employeeData);
+        
+        if (employeeData && employeeData.length > 0) {
+          const employeeIds = employeeData.map(emp => emp.empno);
+          
+          const { data: jobHistoryData, error: jobHistoryError } = await supabase
+            .from('jobhistory')
+            .select('*')
+            .in('empno', employeeIds);
+          
+          if (jobHistoryError) {
+            console.error("Error fetching job history:", jobHistoryError);
+            throw jobHistoryError;
+          }
+          
+          console.log("Job history data:", jobHistoryData);
+          
+          const employeesWithJobHistory = employeeData.map(employee => {
+            const jobHistory = jobHistoryData?.filter(jh => jh.empno === employee.empno) || [];
+            return {
+              ...employee,
+              jobhistory: jobHistory
+            } as EmployeeWithJobHistory;
+          });
+          
+          return employeesWithJobHistory;
+        }
+        
+        return employeeData as EmployeeWithJobHistory[] || [];
+      } catch (error) {
+        console.error("Failed to fetch employees:", error);
+        toast.error("Failed to load employee data");
+        throw error;
       }
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      return data as EmployeeWithJobHistory[] || [];
     },
   });
 

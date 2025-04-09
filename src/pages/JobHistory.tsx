@@ -67,12 +67,18 @@ const JobHistoryPage = () => {
     queryFn: async () => {
       try {
         console.log("Fetching job history with filters:", { employeeFilter, departmentFilter });
+        
+        // Use a more specific query to avoid relationship ambiguity
         let query = supabase
           .from('jobhistory')
           .select(`
-            *,
-            employee (empno, firstname, lastname),
-            department (deptcode, deptname)
+            jobhistory:jobcode,
+            jobhistory:effdate,
+            jobhistory:salary,
+            jobhistory:empno,
+            jobhistory:deptcode,
+            employee:employee!jobhistory_empno_fkey(empno, firstname, lastname),
+            department:department!jobhistory_deptcode_fkey(deptcode, deptname)
           `)
           .order('effdate', { ascending: false });
         
@@ -91,8 +97,19 @@ const JobHistoryPage = () => {
           throw error;
         }
         
-        console.log("Job history data:", data);
-        return data || [];
+        // Transform the data to match the expected format
+        const formattedData = data.map(item => ({
+          jobcode: item.jobhistory,
+          effdate: item.jobhistory_effdate,
+          salary: item.jobhistory_salary,
+          empno: item.jobhistory_empno,
+          deptcode: item.jobhistory_deptcode,
+          employee: item.employee,
+          department: item.department
+        }));
+        
+        console.log("Job history data:", formattedData);
+        return formattedData || [];
       } catch (error) {
         console.error("Failed to fetch job history:", error);
         toast.error("Failed to load job history data");
@@ -312,8 +329,8 @@ const JobHistoryPage = () => {
                   <TableCell colSpan={5} className="text-center py-4">No job history records found</TableCell>
                 </TableRow>
               ) : (
-                jobHistory.map((history: any) => (
-                  <TableRow key={`${history.empno}-${history.effdate}-${history.jobcode}`}>
+                jobHistory.map((history: any, index: number) => (
+                  <TableRow key={`${history.empno}-${history.effdate}-${index}`}>
                     <TableCell className="font-medium">
                       {history.employee?.firstname} {history.employee?.lastname}
                     </TableCell>

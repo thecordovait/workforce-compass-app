@@ -21,7 +21,7 @@ export type DepartmentFormValues = {
     queryFn: async () => {
       try {
         // Don't specify type parameters for rpc to allow TypeScript to infer the return type
-        const { data, error } = await supabase.rpc<DepartmentWithEmployeeCount[], never>('get_departments_with_employee_count');
+        const { data, error } = await supabase.rpc('get_departments_with_employee_count');
         
         if (error) throw error;
         return data || [];
