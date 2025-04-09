@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Department, DepartmentWithEmployeeCount } from '@/types/database';
@@ -20,10 +19,8 @@ export const useDepartments = () => {
     queryKey: ['departmentsWithCount'],
     queryFn: async (): Promise<DepartmentWithEmployeeCount[]> => {
       try {
-        // Fix the generic type parameters for the rpc method
-        // First parameter is the return type, second is the params type
         const { data, error } = await supabase
-          .rpc('get_departments_with_employee_count');
+          .rpc<DepartmentWithEmployeeCount[]>('get_departments_with_employee_count');
         
         if (error) throw error;
         return data || [];
