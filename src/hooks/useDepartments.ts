@@ -20,9 +20,12 @@ export const useDepartments = () => {
     queryKey: ['departmentsWithCount'],
     queryFn: async (): Promise<DepartmentWithEmployeeCount[]> => {
       try {
-        // Call rpc without specifying generic type parameters
+        // Use type assertion to override the inferred type for the RPC call
         const { data, error } = await supabase
-          .rpc('get_departments_with_employee_count');
+          .rpc('get_departments_with_employee_count') as { 
+            data: DepartmentWithEmployeeCount[] | null; 
+            error: any; 
+          };
         
         if (error) throw error;
         return data || [];
