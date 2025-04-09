@@ -20,8 +20,8 @@ export const useDepartments = () => {
     queryKey: ['departmentsWithCount'],
     queryFn: async (): Promise<DepartmentWithEmployeeCount[]> => {
       try {
-        // Fix the RPC call by using the proper type signature
-        // The issue was with the generic type parameters
+        // Fix the RPC call by using the correct approach
+        // The RPC function name should be passed as the first argument
         const { data, error } = await supabase
           .rpc('get_departments_with_employee_count');
         
