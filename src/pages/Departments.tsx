@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,9 +17,6 @@ const departmentFormSchema = z.object({
   deptname: z.string().min(1, { message: 'Department name is required' }),
   location: z.string().optional(),
 });
-
-// Type is now defined using our exported type from useDepartments
-// type DepartmentFormValues = z.infer<typeof departmentFormSchema>;
 
 const Departments = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);

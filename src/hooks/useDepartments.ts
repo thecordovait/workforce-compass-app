@@ -1,18 +1,16 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Department, DepartmentWithEmployeeCount } from '@/types/database';
 import { useToast } from '@/hooks/use-toast';
 
+export type DepartmentFormValues = {
+  deptname: string;       // required
+  location?: string;      // optional
+};
+
 export const useDepartments = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  // Define this type outside the hook - removing the export modifier that was causing the error
-  type DepartmentFormValues = {
-    deptname: string;       // required
-    location?: string;      // optional
-  };  
   
   const {
     data: departments = [],
@@ -147,10 +145,4 @@ export const useDepartments = () => {
     updateDepartmentMutation,
     deleteDepartmentMutation
   };
-};
-
-// Export the type so that it can be imported from other files
-export type DepartmentFormValues = {
-  deptname: string;       // required
-  location?: string;      // optional
 };
