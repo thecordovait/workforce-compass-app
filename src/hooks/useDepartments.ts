@@ -20,8 +20,10 @@ export const useDepartments = () => {
     queryKey: ['departmentsWithCount'],
     queryFn: async (): Promise<DepartmentWithEmployeeCount[]> => {
       try {
+        // Fix the generic type parameters for the rpc method
+        // First parameter is the return type, second is the params type
         const { data, error } = await supabase
-          .rpc<DepartmentWithEmployeeCount[], Record<string, never>>('get_departments_with_employee_count');
+          .rpc('get_departments_with_employee_count');
         
         if (error) throw error;
         return data || [];
