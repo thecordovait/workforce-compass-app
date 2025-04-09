@@ -8,10 +8,11 @@ export const useDepartments = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-export type DepartmentFormValues = {
-  deptname: string;       // required
-  location?: string;      // optional, or required depending on your form
-};  
+  // Define this type outside the hook - removing the export modifier that was causing the error
+  type DepartmentFormValues = {
+    deptname: string;       // required
+    location?: string;      // optional
+  };  
   
   const {
     data: departments = [],
@@ -20,7 +21,7 @@ export type DepartmentFormValues = {
     queryKey: ['departmentsWithCount'],
     queryFn: async () => {
       try {
-        // Don't specify type parameters for rpc to allow TypeScript to infer the return type
+        // Remove explicit type parameter to let TypeScript infer the return type
         const { data, error } = await supabase.rpc('get_departments_with_employee_count');
         
         if (error) throw error;
@@ -57,7 +58,7 @@ export type DepartmentFormValues = {
   });
 
   const addDepartmentMutation = useMutation({
-    mutationFn: async (newDepartment: { deptname: string, location?: string }) => {
+    mutationFn: async (newDepartment: DepartmentFormValues) => {
       const { data, error } = await supabase
         .from('department')
         .insert([{ 
@@ -146,4 +147,10 @@ export type DepartmentFormValues = {
     updateDepartmentMutation,
     deleteDepartmentMutation
   };
+};
+
+// Export the type so that it can be imported from other files
+export type DepartmentFormValues = {
+  deptname: string;       // required
+  location?: string;      // optional
 };

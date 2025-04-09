@@ -86,7 +86,11 @@ const Employees = () => {
         const { data, error } = await supabase.from('employee').select('*').limit(1);
         console.log("Supabase employee check:", { data, error });
         if (error) {
-          toast.error("Supabase connection issue: " + error.message);
+          toast({
+            title: "Error",
+            description: "Supabase connection issue: " + error.message,
+            variant: "destructive"
+          });
         }
       } catch (e) {
         console.error("Failed to check Supabase connection:", e);
@@ -149,7 +153,11 @@ const Employees = () => {
         return employeeData as EmployeeWithJobHistory[] || [];
       } catch (error) {
         console.error("Failed to fetch employees:", error);
-        toast.error("Failed to load employee data");
+        toast({
+          title: "Error",
+          description: "Failed to load employee data",
+          variant: "destructive"
+        });
         throw error;
       }
     },
@@ -222,7 +230,7 @@ const Employees = () => {
       });
       setIsAddDialogOpen(false);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: 'Error',
         description: `Failed to add employee: ${error.message}`,
@@ -271,7 +279,7 @@ const Employees = () => {
       });
       setIsEditDialogOpen(false);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: 'Error',
         description: `Failed to update employee: ${error.message}`,
@@ -305,7 +313,7 @@ const Employees = () => {
       });
       setIsDeleteDialogOpen(false);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: 'Error',
         description: `Failed to delete employee: ${error.message}`,

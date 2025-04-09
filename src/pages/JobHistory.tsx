@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -35,15 +34,30 @@ import { JobHistory, Employee, Department } from '@/types/database';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { toast } from 'sonner';
 
+interface JobHistoryRecord {
+  jobcode: string;
+  effdate: string;
+  salary: number | null;
+  empno: string;
+  deptcode: string;
+  employee: {
+    empno: string;
+    firstname: string | null;
+    lastname: string | null;
+  };
+  department: {
+    deptcode: string;
+    deptname: string | null;
+  };
+}
+
 const JobHistoryPage = () => {
   const [employeeFilter, setEmployeeFilter] = useState<string>('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
 
   useEffect(() => {
-    // Add logging on component mount to track initialization
     console.log("JobHistory component mounted");
     
-    // Check Supabase connection
     const checkSupabase = async () => {
       try {
         const { data, error } = await supabase.from('jobhistory').select('*').limit(1);
@@ -61,26 +75,23 @@ const JobHistoryPage = () => {
     checkSupabase();
   }, []);
 
-  // Fetch job history
-  const { data: jobHistory = [], isLoading: isLoadingJobHistory, refetch, error } = useQuery({
+  const { data: jobHistory = [], isLoading: isLoadingJobHistory, refetch, error } = useQuery<JobHistoryRecord[]>({
     queryKey: ['jobHistory', employeeFilter, departmentFilter],
     queryFn: async () => {
       try {
         console.log("Fetching job history with filters:", { employeeFilter, departmentFilter });
         
-        // Use a more specific query to avoid relationship ambiguity
         let query = supabase
           .from('jobhistory')
           .select(`
-            jobhistory:jobcode,
-            jobhistory:effdate,
-            jobhistory:salary,
-            jobhistory:empno,
-            jobhistory:deptcode,
+            jobcode,
+            effdate,
+            salary,
+            empno,
+            deptcode,
             employee:employee!jobhistory_empno_fkey(empno, firstname, lastname),
             department:department!jobhistory_deptcode_fkey(deptcode, deptname)
-          `)
-          .order('effdate', { ascending: false });
+          `);
         
         if (employeeFilter) {
           query = query.eq('empno', employeeFilter);
@@ -90,26 +101,15 @@ const JobHistoryPage = () => {
           query = query.eq('deptcode', departmentFilter);
         }
         
-        const { data, error } = await query;
+        const { data, error } = await query.order('effdate', { ascending: false });
         
         if (error) {
           console.error("Error fetching job history:", error);
           throw error;
         }
         
-        // Transform the data to match the expected format
-        const formattedData = data.map(item => ({
-          jobcode: item.jobhistory,
-          effdate: item.jobhistory_effdate,
-          salary: item.jobhistory_salary,
-          empno: item.jobhistory_empno,
-          deptcode: item.jobhistory_deptcode,
-          employee: item.employee,
-          department: item.department
-        }));
-        
-        console.log("Job history data:", formattedData);
-        return formattedData || [];
+        console.log("Job history data:", data);
+        return data || [];
       } catch (error) {
         console.error("Failed to fetch job history:", error);
         toast.error("Failed to load job history data");
@@ -118,14 +118,12 @@ const JobHistoryPage = () => {
     },
   });
 
-  // Log error if present
   useEffect(() => {
     if (error) {
       console.error("Job history query error:", error);
     }
   }, [error]);
 
-  // Fetch employees for dropdown
   const { data: employees = [] } = useQuery({
     queryKey: ['employeesDropdown'],
     queryFn: async () => {
@@ -146,7 +144,6 @@ const JobHistoryPage = () => {
     },
   });
 
-  // Fetch departments for dropdown
   const { data: departments = [] } = useQuery({
     queryKey: ['departmentsDropdown'],
     queryFn: async () => {
@@ -172,7 +169,6 @@ const JobHistoryPage = () => {
     setDepartmentFilter('');
   };
 
-  // Handle refresh with feedback
   const handleRefresh = () => {
     toast.info("Refreshing data...");
     refetch();
@@ -329,7 +325,7 @@ const JobHistoryPage = () => {
                   <TableCell colSpan={5} className="text-center py-4">No job history records found</TableCell>
                 </TableRow>
               ) : (
-                jobHistory.map((history: any, index: number) => (
+                jobHistory.map((history: JobHistoryRecord, index: number) => (
                   <TableRow key={`${history.empno}-${history.effdate}-${index}`}>
                     <TableCell className="font-medium">
                       {history.employee?.firstname} {history.employee?.lastname}

@@ -11,15 +11,16 @@ import DepartmentTable from '@/components/departments/DepartmentTable';
 import AddDepartmentDialog from '@/components/departments/AddDepartmentDialog';
 import EditDepartmentDialog from '@/components/departments/EditDepartmentDialog';
 import DeleteDepartmentDialog from '@/components/departments/DeleteDepartmentDialog';
-import { useDepartments } from '@/hooks/useDepartments';
+import { useDepartments, DepartmentFormValues } from '@/hooks/useDepartments';
 
-// Define the schema with required deptname
+// Define the schema to match the DepartmentFormValues type
 const departmentFormSchema = z.object({
   deptname: z.string().min(1, { message: 'Department name is required' }),
   location: z.string().optional(),
 });
 
-type DepartmentFormValues = z.infer<typeof departmentFormSchema>;
+// Type is now defined using our exported type from useDepartments
+// type DepartmentFormValues = z.infer<typeof departmentFormSchema>;
 
 const Departments = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -35,7 +36,7 @@ const Departments = () => {
     deleteDepartmentMutation 
   } = useDepartments();
 
-  // Make sure defaultValues match the schema requirement of deptname
+  // Make sure defaultValues match the type with required deptname
   const addForm = useForm<DepartmentFormValues>({
     resolver: zodResolver(departmentFormSchema),
     defaultValues: {
